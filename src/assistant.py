@@ -1,4 +1,5 @@
 from src.enrichment.data_enrichment import DataEnrichment
+from src.search.search_engine import SearchEngine
 
 # TODO: from src.agent import CodeAgent
 from src.core.schemas import (
@@ -26,6 +27,8 @@ class Assistant:
         self.logger = get_logger(self.__class__.__name__)
 
         self.enrichment = DataEnrichment(service_cfg_path)
+        self.searcher = SearchEngine(service_cfg_path)
+        # self.agent = CodeAgent(service_cfg_path)
 
     async def index(
         self, request: Dict[str, Any], config: Dict[str, Any]
@@ -40,7 +43,13 @@ class Assistant:
         self, request: Dict[str, Any], config: Dict[str, Any]
     ) -> QueryResponse:
         "Функция генерации ответа на вопрос пользователя."
-        pass
+        _, _, base_url, commit_hash = _cached_url_resolver(request["repo_url"])
+        url = f"{base_url}/tree/{commit_hash}"
+        request["repo_url"] = url
+        response = await self.searcher.predict(
+            QueryRequest(**request), SearchConfig(**config)
+        )
+        return response
 
     async def delete_index(self, request: Dict[str, Any]) -> DeleteResponse:
         "Функция удаления индекса репозитория."
